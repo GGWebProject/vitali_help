@@ -102,6 +102,37 @@
     </div>
 
     <script>
+        // Универсальная функция копирования с fallback для WebView (Instagram, Facebook и т.д.)
+        function fallbackCopyText(text) {
+            return new Promise((resolve, reject) => {
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                
+                // Фиксируем textarea за пределами экрана, чтобы избежать скролла
+                textarea.style.position = "fixed";
+                textarea.style.top = "0";
+                textarea.style.left = "0";
+                textarea.style.opacity = "0";
+                
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    if (successful) {
+                        resolve();
+                    } else {
+                        reject(new Error('execCommand returned false'));
+                    }
+                } catch (err) {
+                    document.body.removeChild(textarea);
+                    reject(err);
+                }
+            });
+        }
+
         function copyText() {
             const button = document.getElementById('copyButton');
             const text = document.getElementById('content').innerText;
@@ -109,7 +140,12 @@
             button.disabled = true;
             button.textContent = 'Копирование...';
 
-            navigator.clipboard.writeText(text)
+            // Проверяем современный API, а если его нет или он заблокирован — используем fallback
+            const copyPromise = (navigator.clipboard && navigator.clipboard.writeText)
+                ? navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text))
+                : fallbackCopyText(text);
+
+            copyPromise
                 .then(() => {
                     button.textContent = 'Скопировано! ✓';
                     button.classList.add('success');
